@@ -37,6 +37,10 @@ RUN cd /var/www/html \
     && find . -type d -exec chmod 755 {} \; \
     && chmod 777 ytPrivate
 
+# Add health check for Coolify
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/ || exit 1
+
 EXPOSE 80
 
 CMD ["apache2-foreground"]
