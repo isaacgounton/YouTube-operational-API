@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     libzip-dev \
     unzip \
+    curl \
     && rm -rf /var/list/apt/lists/*
 
 # Install PHP extensions
@@ -45,7 +46,12 @@ COPY . .
 
 # Set correct permissions
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+    && find /var/www/html -type f -exec chmod 644 {} \; \
+    && find /var/www/html -type d -exec chmod 755 {} \;
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
 # Install dependencies and compile proto files
 RUN composer require google/protobuf \
@@ -53,6 +59,9 @@ RUN composer require google/protobuf \
 
 # Expose port 80 (Apache default)
 EXPOSE 80
+
+# Configure default index
+RUN echo "DirectoryIndex index.php index.html" >> /etc/apache2/apache2.conf
 
 # Start Apache in foreground
 CMD ["apache2-foreground"]
