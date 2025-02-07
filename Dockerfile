@@ -41,17 +41,12 @@ RUN echo '<VirtualHost *:80>\n\
 # Install composer
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 
-# Copy application files
+# Copy application files and set permissions
 COPY . .
-
-# Set correct permissions
 RUN chown -R www-data:www-data /var/www/html \
     && find /var/www/html -type f -exec chmod 644 {} \; \
     && find /var/www/html -type d -exec chmod 755 {} \;
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/ || exit 1
 
 # Install dependencies and compile proto files
 RUN composer require google/protobuf \
