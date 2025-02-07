@@ -8,16 +8,34 @@ RUN apt-get update && apt-get install -y \
     git \
     protobuf-compiler \
     libzip-dev \
+    unzip \
     && rm -rf /var/list/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install zip
+RUN docker-php-ext-install zip pdo pdo_mysql
+
+# Configure PHP
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$PHP_INI_DIR/php.ini"
 
 # Enable Apache modules
 RUN a2enmod rewrite
 
 # Configure Apache
-RUN sed -ri -e 'N;N;N;s/(<Directory \/var\/www\/>\n)(.*\n)(.*)AllowOverride None/\1\2\3AllowOverride All/;p;d;' /etc/apache2/apache2.conf
+RUN sed -ri -e 'N;N;N;s/(<Directory \/var\/www\/>\n)(.*\n)(.*)AllowOverride None/\1\2\3AllowOverride All/;p;d;' /etc/apache2/apache2.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Create Apache virtual host
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html\n\
+    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+    <Directory /var/www/html>\n\
+        Options Indexes FollowSymLinks\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Install composer
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
