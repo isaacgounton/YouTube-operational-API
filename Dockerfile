@@ -12,18 +12,30 @@ RUN apt-get update && apt-get install -y \
     && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$PHP_INI_DIR/php.ini" \
     && a2enmod rewrite \
-    && sed -ri -e 'N;N;N;s/(<Directory \/var\/www\/>\n)(.*\n)(.*)AllowOverride None/\1\2\3AllowOverride All/;p;d;' /etc/apache2/apache2.conf \
+    && sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf \
     && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
     && echo "DirectoryIndex index.php index.html" >> /etc/apache2/apache2.conf
 
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 
+# Create necessary directories first
+RUN mkdir -p /var/www/html/ytPrivate \
+    && mkdir -p /var/www/html/proto/php \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+# Copy application files
 COPY . .
-RUN chown -R www-data:www-data /var/www/html \
-    && find /var/www/html -type f -exec chmod 644 {} \; \
-    && find /var/www/html -type d -exec chmod 755 {} \; \
+
+# Install dependencies and compile proto files
+RUN cd /var/www/html \
     && composer require google/protobuf \
-    && protoc --php_out=proto/php/ --proto_path=proto/prototypes/ $(find proto/prototypes/ -type f)
+    && protoc --php_out=proto/php/ --proto_path=proto/prototypes/ $(find proto/prototypes/ -type f) \
+    && chown -R www-data:www-data . \
+    && chmod -R 755 . \
+    && find . -type f -exec chmod 644 {} \; \
+    && find . -type d -exec chmod 755 {} \; \
+    && chmod 777 ytPrivate
 
 EXPOSE 80
 
